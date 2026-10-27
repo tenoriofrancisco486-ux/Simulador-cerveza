@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simulador de Cerveza Virtual</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            touch-action: none;
+            user-select: none;
+            overflow: hidden;
+            background: #0f172a;
+        }
+
+        .glass-container {
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.3), 
+                        0 20px 40px rgba(0, 0, 0, 0.6);
+            border: 4px solid rgba(255, 255, 255, 0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(2px);
+            border-bottom-left-radius: 35px;
+            border-bottom-right-radius: 35px;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+
+        .glass-shine {
+            position: absolute;
+            top: 0;
+            left: 10%;
+            width: 15%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: 20px;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .bar-bg {
+            background-color: #0d1117;
+            background-image: 
+                radial-gradient(at 50% 0%, rgba(245, 158, 11, 0.15) 0px, transparent 70%),
+                radial-gradient(at 100% 100%, rgba(217, 119, 6, 0.1) 0px, transparent 50%);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(245, 158, 11, 0.5);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bar-bg min-h-screen text-white flex flex-col justify-between select-none">
+
+    <header class="p-4 flex justify-between items-center z-30 max-w-md mx-auto w-full">
+        <button id="brandBtn" class="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 px-4 py-2 rounded-full font-semibold flex items-center gap-2 transition backdrop-blur-md active:scale-95">
+            <i class="fa-solid fa-beer-mug-empty text-lg"></i>
+            <span id="currentBrandName">Corona Extra</span>
+            <i class="fa-solid fa-chevron-down text-xs opacity-70"></i>
+        </button>
+
+        <button id="refillBtn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold p-3 rounded-full shadow-lg transition active:scale-90 flex items-center justify-center w-11 h-11" title="Rellenar Cerveza">
+            <i class="fa-solid fa-rotate-right text-lg"></i>
+        </button>
+    </header>
+
+    <main class="flex-1 flex flex-col items-center justify-center relative p-4">
+        <div id="glass" class="glass-container w-64 h-[28rem] relative overflow-hidden bg-white/5 transition-transform duration-75">
+            <div class="glass-shine"></div>
+            
+            <div id="glassLogo" class="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none opacity-80 transition-all duration-300">
+                <span id="logoText" class="text-2xl font-black tracking-widest uppercase text-amber-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-center px-4">
+                    CORONA
+                </span>
+                <span id="logoSubtext" class="text-xs font-semibold tracking-widest text-amber-100/80 uppercase mt-1">
+                    Extra
+                </span>
+            </div>
+
+            <canvas id="beerCanvas" class="w-full h-full absolute inset-0 z-10"></canvas>
+        </div>
+
+        <div id="tiltInstruction" class="mt-4 text-xs text-amber-200/60 flex items-center gap-2 bg-slate-900/60 px-4 py-2 rounded-full border border-white/5 backdrop-blur-sm">
+            <i class="fa-solid fa-mobile-screen-button animate-bounce"></i>
+            <span>Inclina tu dispositivo o mueve el cursor para tomar</span>
+        </div>
+    </main>
+
+    <footer class="p-4 z-30 max-w-md mx-auto w-full flex flex-col items-center gap-2">
+        <div class="w-full bg-slate-800/80 rounded-full h-3 overflow-hidden border border-white/10 p-0.5">
+            <div id="beerLevelBar" class="bg-gradient-to-r from-amber-600 to-amber-400 h-full rounded-full w-full transition-all duration-200"></div>
+        </div>
+        <div class="flex justify-between w-full text-xs text-slate-400 font-medium px-1">
+            <span>Nivel de Cerveza</span>
+            <span id="beerPercentText">100%</span>
+        </div>
+    </footer>
+
+    <div id="brandModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-700/60 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300 flex flex-col max-h-[85vh]">
+            
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-list-ul"></i> Selecciona tu Cerveza
+                </h2>
+                <button id="closeModalBtn" class="text-slate-400 hover:text-white p-2 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="brandList" class="grid grid-cols-1 gap-2.5 overflow-y-auto custom-scrollbar pr-1 flex-1">
+            </div>
+        </div>
+    </div>
+
+    <div id="audioStartOverlay" class="fixed inset-0 bg-slate-950/90 z-50 flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-20 h-20 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-4xl mb-4 border border-amber-500/40 animate-pulse">
+            <i class="fa-solid fa-beer-mug-empty"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-white mb-2">Simulador de Cerveza</h1>
+        <p class="text-slate-400 text-sm mb-6 max-w-xs">Toca para abrir tu cerveza con sonido realista y activar el giroscopio.</p>
+        <button id="startAppBtn" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-
